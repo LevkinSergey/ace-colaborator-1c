@@ -18,7 +18,7 @@ const isDev = process.env.NODE_ENV !== 'production'
 module.exports = {
   entry: {
     app: `${defines.src}/index.ts`,
-    ace: `${defines.src}/ace/index.ts`
+    ace: `${defines.src}/ace.ts`
     // another app example:
     // auth: `${defines.src}/_auth/index.ts`
   },

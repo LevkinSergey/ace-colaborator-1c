@@ -186,6 +186,7 @@ export class CollaboratorManagerForOnes {
     this.editor.on('changeSelection', this.handlerEditorChangeSelectionEvent.bind(this))
 
     const selectionsReferences = this.textModel.references({ key: COLABORATION_SELECTION_KEY })
+    console.log(selectionsReferences)
     selectionsReferences.forEach((reference: any) => {
       if (!reference.isLocal()) {
         this.addSelection(reference)
@@ -365,6 +366,7 @@ export class CollaboratorManagerForOnes {
   }
 
   private handlerTextModelReferenceEvent(evt: IConvergenceEvent) {
+    console.log(evt)
     const event = evt as RemoteReferenceCreatedEvent
 
     const refkey: string = event.reference.key()

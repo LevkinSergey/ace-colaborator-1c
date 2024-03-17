@@ -1022,6 +1022,13 @@
     "@babel/helper-validator-identifier" "^7.22.20"
     to-fast-properties "^2.0.0"
 
+"@convergence/color-assigner@^0.3.0":
+  version "0.3.0"
+  resolved "https://registry.npmjs.org/@convergence/color-assigner/-/color-assigner-0.3.0.tgz"
+  integrity sha512-h+YZjqW6GfFOwSyZpH7KT+a7VrvXt2suZeBL2d0Wcd4kONDwtuVtyzKowLyikrobDJctAu/RhtW7CjhvEJL+CQ==
+  dependencies:
+    csscolorparser "1.0.3"
+
 "@convergence/convergence@^1.0.0-rc.12":
   version "1.0.0-rc.12"
   resolved "https://registry.npmjs.org/@convergence/convergence/-/convergence-1.0.0-rc.12.tgz"
@@ -2656,6 +2663,11 @@ css-what@^6.0.1, css-what@^6.1.0:
   version "6.1.0"
   resolved "https://registry.npmjs.org/css-what/-/css-what-6.1.0.tgz"
   integrity sha512-HTUrgRJ7r4dsZKU6GjmpfRK1O76h97Z8MfS1G0FozR+oF2kG6Vfe8JE6zwrkbxigziPHinCJ+gCPjA9EaBDtRw==
+
+csscolorparser@1.0.3:
+  version "1.0.3"
+  resolved "https://registry.npmjs.org/csscolorparser/-/csscolorparser-1.0.3.tgz"
+  integrity sha512-umPSgYwZkdFoUrH5hIq5kf0wPSXiro51nPw0j2K/c83KflkPSTBGMz6NJvMB+07VlL0y7VPo6QJcDjcgKTTm3w==
 
 cssdb@^7.9.0:
   version "7.9.0"

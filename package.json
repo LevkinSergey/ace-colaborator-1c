@@ -38,6 +38,7 @@
     "@babel/preset-env": "^7.23.5",
     "@babel/preset-react": "^7.23.3",
     "@babel/preset-typescript": "^7.23.3",
+    "@convergence/color-assigner": "^0.3.0",
     "@convergence/convergence": "^1.0.0-rc.12",
     "@convergencelabs/ace-collab-ext": "^0.6.0",
     "@types/node": "^20.10.2",

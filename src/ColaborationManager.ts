@@ -1,7 +1,11 @@
 // import { AppTo1CWindow } from '@/app-env'
-import { connectAnonymously, ConvergenceDomain, IConvergenceEvent, RealTimeElement, RealTimeModel, RealTimeString, StringInsertEvent, StringRemoveEvent, StringSetValueEvent } from '@convergence/convergence'
+import { connectAnonymously, ConvergenceDomain, IConvergenceEvent, IndexReference, LocalIndexReference, ModelReference, RealTimeElement, RealTimeModel, RealTimeString, RemoteReferenceCreatedEvent, StringInsertEvent, StringRemoveEvent, StringSetValueEvent } from '@convergence/convergence'
 import ace, { Ace } from 'ace-builds'
 import { AppTo1CWindow } from './app-env'
+import { AceMultiCursorManager, AceRadarView } from '@convergencelabs/ace-collab-ext'
+import { ColorAssigner } from '@convergence/color-assigner'
+
+const COLABORATION_CURSOR_KEY = 'cursor'
 
 const AceRange = ace.require('ace/range').Range
 
@@ -34,7 +38,11 @@ export class CollaboratorManagerForOnes {
   editorDocument?: ColaboratorEditorDoc
   model?: RealTimeModel
   textModel?: RealTimeString
+  cursorManager?: AceMultiCursorManager
+  cursorReference?: LocalIndexReference
+  radarView?: AceRadarView
 
+  colorAssigner: ColorAssigner
   suppressEvents: boolean
 
   constructor(options: CollaboratorManagerForOnesOptions) {
@@ -54,6 +62,7 @@ export class CollaboratorManagerForOnes {
     this.editorDocument = this.editorSession.getDocument()
 
     this.suppressEvents = false
+    this.colorAssigner = new ColorAssigner()
   }
 
   setUserName(name: string) {
@@ -110,61 +119,87 @@ export class CollaboratorManagerForOnes {
 
   private handlerModelOpen(model: RealTimeModel) {
     this.model = model
-
-    let modelValue: string = ''
-    if (this.textModel) {
-      modelValue = this.textModel.value()
-    }
-
-    this.editorSession?.setValue(modelValue)
-    console.log('model open')
-
     this.textModel = this.model.elementAt('text') as RealTimeString
 
-    this.textModel.on(RealTimeString.Events.VALUE, evt => {
-      if (!this.editorDocument) {
-        return
-      }
-      const event = evt as StringSetValueEvent
-      console.log('VALUE', evt)
-      this.suppressEvents = true
-      const pos = this.editor.setValue(event.element.value())
-      this.suppressEvents = false
-    })
-
-    this.textModel.on(RealTimeString.Events.INSERT, evt => {
-      if (!this.editorDocument) {
-        return
-      }
-      const event = evt as StringInsertEvent
-      console.log('INSERT', evt)
-      const pos = this.editorDocument.indexToPosition(event.index, 0)
-      this.suppressEvents = true
-      this.editorDocument.insert(pos, event.value)
-      this.suppressEvents = false
-    })
-    this.textModel.on(RealTimeString.Events.REMOVE, evt => {
-      console.log(evt)
-      if (!this.editorDocument) {
-        return
-      }
-      const event = evt as StringRemoveEvent
-      const start = this.editorDocument.indexToPosition(event.index, 0)
-      const end = this.editorDocument.indexToPosition(event.index + event.value.length, 0)
-      this.suppressEvents = true
-      this.editorDocument.remove(new AceRange(start.row, start.column, end.row, end.column))
-      this.suppressEvents = false
-    })
-
     if (this.colaborationType === 'SOURSE') {
+      console.log('SOURSE')
       this.textModel.value(this.editor.getValue())
+    } else {
+      this.editor.setValue(this.textModel.value())
     }
 
+    console.log('model open')
+
+    //Увязка текста
+
+    this.textModel.on(RealTimeString.Events.VALUE, this.handlerTextModelOnRealTimeStringEventsVALUE.bind(this))
+    this.textModel.on(RealTimeString.Events.INSERT, this.handlerTextModelOnRealTimeStringEventsINSERT.bind(this))
+    this.textModel.on(RealTimeString.Events.REMOVE, this.handlerTextModelOnRealTimeStringEventsREMOVE.bind(this))
+
     this.model.root().on('model_changed', evt => {
-      console.log('change', evt)
+      console.log('model change', evt)
     })
 
     this.editor.on('change', this.handlerEditorChangeEvent.bind(this))
+
+    // увязка курсора
+    this.cursorManager = new AceMultiCursorManager(window.editor.getSession())
+    this.cursorReference = this.textModel.indexReference(COLABORATION_CURSOR_KEY)
+
+    const references = this.textModel.references({ key: COLABORATION_CURSOR_KEY })
+    references.forEach((reference: ModelReference) => {
+      if (!reference.isLocal()) {
+        this.addCursor(reference)
+      }
+    })
+
+    this.setLocalCursor()
+    this.cursorReference.share()
+
+    this.editor.getSession().selection.on('changeCursor', this.handlerEditorChangeCursorEvent.bind(this))
+
+    this.textModel.on('reference', this.handlerTextModelReferenceEvent.bind(this))
+  }
+
+  private setLocalCursor() {
+    if (!this.editorDocument || !this.cursorReference) {
+      return
+    }
+
+    const position = this.editor.getCursorPosition()
+    const index = this.editorDocument.positionToIndex(position)
+    this.cursorReference.set(index)
+  }
+
+  private addCursor(reference: ModelReference<number>) {
+    if (!this.editorDocument || !this.cursorManager) {
+      return
+    }
+    console.log('addCursor', reference)
+    const displayName = reference.user().displayName || 'User' + Date.now()
+
+    const color = this.colorAssigner.getColorAsHex(reference.sessionId())
+    const remoteCursorIndex = reference.value()
+    this.cursorManager.addCursor(reference.sessionId(), displayName, color, remoteCursorIndex)
+    reference.on('cleared', () => {
+      this.cursorManager?.clearCursor(reference.sessionId())
+    })
+    reference.on('disposed', () => {
+      this.cursorManager?.removeCursor(reference.sessionId())
+    })
+    reference.on('set', () => {
+      if (!this.editorDocument || !this.cursorManager) {
+        return
+      }
+      const cursorIndex = reference.value()
+      const cursorRow = this.editorDocument.indexToPosition(cursorIndex, 0).row
+      this.cursorManager.setCursor(reference.sessionId(), cursorIndex)
+      if (this.radarView) {
+        if (this.radarView.hasView(reference.sessionId())) {
+          this.radarView.setCursorRow(reference.sessionId(), cursorRow)
+        }
+      }
+    })
   }
 
   private handlerEditorChangeEvent(delta: Ace.Delta) {
@@ -193,6 +228,58 @@ export class CollaboratorManagerForOnes {
         throw new Error('unknown action: ' + delta.action)
     }
   }
+
+  private handlerEditorChangeCursorEvent(ev: any) {
+    this.setLocalCursor()
+  }
+
+  private handlerTextModelOnRealTimeStringEventsVALUE(evt: IConvergenceEvent) {
+    if (!this.editorDocument) {
+      return
+    }
+
+    const event = evt as StringSetValueEvent
+
+    console.log('VALUE', event)
+    this.suppressEvents = true
+    const pos = this.editor.setValue(event.element.value())
+    this.suppressEvents = false
+  }
+
+  private handlerTextModelOnRealTimeStringEventsREMOVE(evt: IConvergenceEvent) {
+    console.log(evt)
+    if (!this.editorDocument) {
+      return
+    }
+    const event = evt as StringRemoveEvent
+    const start = this.editorDocument.indexToPosition(event.index, 0)
+    const end = this.editorDocument.indexToPosition(event.index + event.value.length, 0)
+    this.suppressEvents = true
+    this.editorDocument.remove(new AceRange(start.row, start.column, end.row, end.column))
+    this.suppressEvents = false
+  }
+
+  private handlerTextModelOnRealTimeStringEventsINSERT(evt: IConvergenceEvent) {
+    if (!this.editorDocument) {
+      return
+    }
+    const event = evt as StringInsertEvent
+    console.log('INSERT', evt)
+    const pos = this.editorDocument.indexToPosition(event.index, 0)
+    this.suppressEvents = true
+    this.editorDocument.insert(pos, event.value)
+    this.suppressEvents = false
+  }
+
+  private handlerTextModelReferenceEvent(evt: IConvergenceEvent) {
+    const event = evt as RemoteReferenceCreatedEvent
+    console.log('reference', evt)
+    if (event.reference.key() === COLABORATION_CURSOR_KEY) {
+      this.addCursor(event.reference)
+    }
+  }
+
+  private handlerReferenseClearedEvent(evt: IConvergenceEvent) {}
 }
 
 declare var window: AppTo1CWindow

@@ -3,7 +3,6 @@
 
 //
 const defines = require('./webpack-defines')
-const pages = require('./webpack-pages')
 
 // copy files from dev (i.g. `assets/img/*`) to dist (i.g `static/img/*`)
 const CopyWebpackPlugin = require('copy-webpack-plugin')
@@ -18,7 +17,8 @@ const isDev = process.env.NODE_ENV !== 'production'
 
 module.exports = {
   entry: {
-    app: `${defines.src}/index.ts`
+    app: `${defines.src}/index.ts`,
+    ace: `${defines.src}/ace/index.ts`
     // another app example:
     // auth: `${defines.src}/_auth/index.ts`
   },
@@ -27,7 +27,7 @@ module.exports = {
     // if you need hash:
     // filename: `${defines.assets}js/[name].[contenthash].js`
     // if you don't need hash:
-    filename: `${defines.assets}js/[name].js`
+    filename: '[name].js'
   },
 
   // optimization (chunks)
@@ -76,7 +76,19 @@ module.exports = {
           }
         }
       },
+      {
+        test: /\.(ts|js)x?$/,
+        // exclude: /node_modules/,
+        include: /node_modules\/@convergence\/convergence/,
+        use: {
+          loader: 'babel-loader',
 
+          options: {
+            // react-refresh example:
+            // plugins: [isDev && require.resolve('react-refresh/babel')].filter(Boolean)
+          }
+        }
+      },
       // sass & css
       {
         test: /\.s(a|c)ss$/,
@@ -158,16 +170,25 @@ module.exports = {
     // }),
 
     // or by config (from `webpack-pages.js`):
-    ...pages.map(
-      page =>
-        new HtmlWebpackPlugin({
-          title: page.title,
-          template: defines.public + '/' + page.template,
-          filename: page.filename,
-          // default:
-          favicon: defines.src + '/shared/misc/favicon.ico'
-        })
-    ),
+    new HtmlWebpackPlugin({
+      inject: 'body',
+      title: 'Ace collaborator for 1c',
+      // favicon: defines.src + '/shared/misc/favicon.ico',
+      template: defines.public + '/index.html',
+      filename: 'index.html', // output file
+      minify: {
+        removeComments: true,
+        collapseWhitespace: true,
+        removeRedundantAttributes: true,
+        useShortDoctype: true,
+        removeEmptyAttributes: true,
+        removeStyleLinkTypeAttributes: true,
+        keepClosingSlash: true,
+        minifyJS: true,
+        minifyCSS: true,
+        minifyURLs: true
+      }
+    }),
 
     // extract css from js / ts files (it's a basic setup to keep css in `css` folder)
     // https://webpack.js.org/plugins/mini-css-extract-plugin/
@@ -175,34 +196,34 @@ module.exports = {
       // if you need hash:
       // filename: `${defines.assets}css/[name].[contenthash].css`,
       // if you don't need hash:
-      filename: `${defines.assets}css/[name].css`,
+      filename: `[name].css`,
       chunkFilename: '[id].css'
-    }),
+    })
 
     // copy files from target to destination folder
-    new CopyWebpackPlugin({
-      patterns: [
-        // `shared/img` to `dist/static/img`
-        {
-          from: `${defines.src}/shared/img`,
-          to: `${defines.dist}/${defines.static}/img`
-        },
+    // new CopyWebpackPlugin({
+    //   patterns: [
+    //     // `shared/img` to `dist/static/img`
+    //     {
+    //       from: `${defines.src}/shared/img`,
+    //       to: `${defines.dist}/${defines.static}/img`
+    //     },
 
-        // others:
-        // `shared/fonts` to `dist/static/fonts`
-        // {
-        //   from: `${defines.src}/shared/fonts`,
-        //   to: `${defines.dist}/${defines.static}/fonts`
-        // },
+    //     // others:
+    //     // `shared/fonts` to `dist/static/fonts`
+    //     // {
+    //     //   from: `${defines.src}/shared/fonts`,
+    //     //   to: `${defines.dist}/${defines.static}/fonts`
+    //     // },
 
-        // misc
-        // `shared/misc` to `dist/`
-        {
-          from: `${defines.src}/shared/misc`,
-          to: `${defines.dist}`
-        }
-      ]
-    })
+    //     // misc
+    //     // `shared/misc` to `dist/`
+    //     {
+    //       from: `${defines.src}/shared/misc`,
+    //       to: `${defines.dist}`
+    //     }
+    //   ]
+    // })
   ],
 
   resolve: {

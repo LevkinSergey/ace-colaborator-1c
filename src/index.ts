@@ -4,18 +4,14 @@ import './index.scss'
 
 import { CollaboratorManagerForOnes } from './ColaborationManager'
 import { AppTo1CWindow } from './app-env'
+import { ColaboratorForOnes } from './Colaborator'
 
-export const CONVERGENCE_URL = 'http://192.168.110.35:9000/api/realtime/convergence/default'
-
-let colaborator: CollaboratorManagerForOnes | undefined = undefined
-
-export const connectColaborator = () => {
-  colaborator = new CollaboratorManagerForOnes(window.editor, CONVERGENCE_URL, 'Sergey')
-  colaborator.connect()
+function initColaborator() {
+  window.colaborator = new ColaboratorForOnes(window.editor)
 }
 
 window.addEventListener('load', ev => {
-  connectColaborator()
+  initColaborator()
 })
 
 declare var window: AppTo1CWindow

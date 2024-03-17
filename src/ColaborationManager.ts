@@ -1,13 +1,15 @@
 // import { AppTo1CWindow } from '@/app-env'
-import { connectAnonymously, ConvergenceDomain, IConvergenceEvent, IndexReference, LocalIndexReference, ModelReference, RealTimeElement, RealTimeModel, RealTimeString, RemoteReferenceCreatedEvent, StringInsertEvent, StringRemoveEvent, StringSetValueEvent } from '@convergence/convergence'
-import ace, { Ace } from 'ace-builds'
+import { connectAnonymously, ConvergenceDomain, IConvergenceEvent, IndexRange, IndexReference, LocalIndexReference, LocalRangeReference, ModelReference, RealTimeElement, RealTimeModel, RealTimeString, ReferenceSetEvent, RemoteReferenceCreatedEvent, StringInsertEvent, StringRemoveEvent, StringSetValueEvent } from '@convergence/convergence'
+// import { Ace } from 'ace-builds'
+import { Ace, Range } from 'ace-code'
 import { AppTo1CWindow } from './app-env'
-import { AceMultiCursorManager, AceRadarView } from '@convergencelabs/ace-collab-ext'
+import { AceMultiCursorManager, AceMultiSelectionManager, AceRadarView } from '@convergencelabs/ace-collab-ext'
 import { ColorAssigner } from '@convergence/color-assigner'
 
 const COLABORATION_CURSOR_KEY = 'cursor'
+const COLABORATION_SELECTION_KEY = 'selection'
 
-const AceRange = ace.require('ace/range').Range
+const AceRange = Range
 
 export type CalaborationType = 'SOURSE' | 'FORK'
 
@@ -30,16 +32,18 @@ export class CollaboratorManagerForOnes {
   private readonly colaborationType: CalaborationType
   private username: string
   private readonly colabSessionId: string
+  private readonly editorDocument: ColaboratorEditorDoc
 
   collectionId: string
 
   domain?: ConvergenceDomain
-  editorSession?: ColaboratorEditorSession
-  editorDocument?: ColaboratorEditorDoc
   model?: RealTimeModel
   textModel?: RealTimeString
   cursorManager?: AceMultiCursorManager
   cursorReference?: LocalIndexReference
+  selectionManager?: AceMultiSelectionManager
+  selectionReference?: LocalRangeReference
+
   radarView?: AceRadarView
 
   colorAssigner: ColorAssigner
@@ -58,8 +62,7 @@ export class CollaboratorManagerForOnes {
       this.collectionId = 'ace-for-1c'
     }
 
-    this.editorSession = this.editor.getSession()
-    this.editorDocument = this.editorSession.getDocument()
+    this.editorDocument = this.editor.getSession().getDocument()
 
     this.suppressEvents = false
     this.colorAssigner = new ColorAssigner()
@@ -121,33 +124,49 @@ export class CollaboratorManagerForOnes {
     this.model = model
     this.textModel = this.model.elementAt('text') as RealTimeString
 
+    this.initTextColaboration()
+    // this.initCursorColaboration()
+    this.initSelectionColaboration()
+
+    // this.model.root().on('model_changed', evt => {
+    //   console.log('model change', evt)
+    // })
+
+    this.textModel.on('reference', this.handlerTextModelReferenceEvent.bind(this))
+
+    //отправляем или принимаем значения
     if (this.colaborationType === 'SOURSE') {
       console.log('SOURSE')
       this.textModel.value(this.editor.getValue())
     } else {
-      this.editor.setValue(this.textModel.value())
+      this.suppressEvents = true
+      this.editorDocument.setValue(this.textModel.value())
+      this.suppressEvents = false
     }
+  }
 
-    console.log('model open')
-
-    //Увязка текста
-
+  private initTextColaboration() {
+    if (!this.textModel) {
+      return
+    }
     this.textModel.on(RealTimeString.Events.VALUE, this.handlerTextModelOnRealTimeStringEventsVALUE.bind(this))
     this.textModel.on(RealTimeString.Events.INSERT, this.handlerTextModelOnRealTimeStringEventsINSERT.bind(this))
     this.textModel.on(RealTimeString.Events.REMOVE, this.handlerTextModelOnRealTimeStringEventsREMOVE.bind(this))
 
-    this.model.root().on('model_changed', evt => {
-      console.log('model change', evt)
-    })
-
     this.editor.on('change', this.handlerEditorChangeEvent.bind(this))
+  }
 
-    // увязка курсора
-    this.cursorManager = new AceMultiCursorManager(window.editor.getSession())
+  private initCursorColaboration() {
+    if (!this.textModel) {
+      return
+    }
+    this.cursorManager = new AceMultiCursorManager(this.editor.getSession())
     this.cursorReference = this.textModel.indexReference(COLABORATION_CURSOR_KEY)
 
-    const references = this.textModel.references({ key: COLABORATION_CURSOR_KEY })
-    references.forEach((reference: ModelReference) => {
+    this.editor.getSession().selection.on('changeCursor', this.handlerEditorChangeCursorEvent.bind(this))
+
+    const cursorReferences = this.textModel.references({ key: COLABORATION_CURSOR_KEY })
+    cursorReferences.forEach((reference: ModelReference) => {
       if (!reference.isLocal()) {
         this.addCursor(reference)
       }
@@ -155,14 +174,29 @@ export class CollaboratorManagerForOnes {
 
     this.setLocalCursor()
     this.cursorReference.share()
+  }
 
-    this.editor.getSession().selection.on('changeCursor', this.handlerEditorChangeCursorEvent.bind(this))
+  private initSelectionColaboration() {
+    if (!this.textModel) {
+      return
+    }
+    this.selectionManager = new AceMultiSelectionManager(this.editor.getSession())
+    this.selectionReference = this.textModel.rangeReference(COLABORATION_SELECTION_KEY)
 
-    this.textModel.on('reference', this.handlerTextModelReferenceEvent.bind(this))
+    this.editor.on('changeSelection', this.handlerEditorChangeSelectionEvent.bind(this))
+
+    const selectionsReferences = this.textModel.references({ key: COLABORATION_SELECTION_KEY })
+    selectionsReferences.forEach((reference: any) => {
+      if (!reference.isLocal()) {
+        this.addSelection(reference)
+      }
+    })
+    this.setLocalSelection()
+    this.selectionReference.share()
   }
 
   private setLocalCursor() {
-    if (!this.editorDocument || !this.cursorReference) {
+    if (!this.cursorReference) {
       return
     }
 
@@ -172,7 +206,7 @@ export class CollaboratorManagerForOnes {
   }
 
   private addCursor(reference: ModelReference<number>) {
-    if (!this.editorDocument || !this.cursorManager) {
+    if (!this.cursorManager) {
       return
     }
     console.log('addCursor', reference)
@@ -188,7 +222,7 @@ export class CollaboratorManagerForOnes {
       this.cursorManager?.removeCursor(reference.sessionId())
     })
     reference.on('set', () => {
-      if (!this.editorDocument || !this.cursorManager) {
+      if (!this.cursorManager) {
         return
       }
       const cursorIndex = reference.value()
@@ -202,15 +236,73 @@ export class CollaboratorManagerForOnes {
     })
   }
 
+  private setLocalSelection() {
+    if (!this.selectionReference) {
+      return
+    }
+    console.log('this.editor.selection.isEmpty()', this.editor.selection.isEmpty())
+    if (!this.editor.selection.isEmpty()) {
+      const indexRanges: IndexRange[] = []
+
+      for (const curAceRagne of this.editor.selection.getAllRanges()) {
+        const start = this.editorDocument.positionToIndex(curAceRagne.start, 0)
+        const end = this.editorDocument.positionToIndex(curAceRagne.end, 0)
+        indexRanges.push({ start: start, end: end })
+      }
+      console.log('indexRanges', indexRanges)
+      this.selectionReference.set(indexRanges)
+    } else if (this.selectionReference.isSet() && !this.selectionReference.isDisposed()) {
+      this.selectionReference.clear()
+    }
+  }
+
+  private addSelection(reference: ModelReference<number>) {
+    if (!this.selectionManager) {
+      return
+    }
+    const color = this.colorAssigner.getColorAsHex(reference.sessionId())
+    const remoteSelections: Ace.Range[] = []
+
+    for (const refvalue of reference.values()) {
+      const newRange = this.toAceRange(refvalue)
+      if (!newRange) {
+        continue
+      }
+      remoteSelections.push(newRange)
+    }
+
+    // const remoteSelection = reference.values().map((range: any) => {
+    //   console.log('remoteSelection range: any', range)
+
+    //   return this.toAceRange(range)
+    // })
+
+    this.selectionManager.addSelection(reference.sessionId(), reference.user().username, color, remoteSelections)
+    reference.on('cleared', () => this.selectionManager?.clearSelection(reference.sessionId()))
+    reference.on('disposed', () => this.selectionManager?.removeSelection(reference.sessionId()))
+    reference.on('set', (ev: any) => {
+      console.log('set', ev)
+
+      const newSelectionsRanges: Ace.Range[] = []
+
+      for (const refvalue of reference.values()) {
+        const newRange = this.toAceRange(refvalue)
+        if (!newRange) {
+          continue
+        }
+        newSelectionsRanges.push(newRange)
+      }
+
+      this.selectionManager?.setSelection(reference.sessionId(), newSelectionsRanges)
+    })
+  }
+
   private handlerEditorChangeEvent(delta: Ace.Delta) {
     if (this.suppressEvents) {
       return
     }
 
     if (!this.textModel) {
-      return
-    }
-    if (!this.editorDocument) {
       return
     }
 
@@ -230,11 +322,17 @@ export class CollaboratorManagerForOnes {
   }
 
   private handlerEditorChangeCursorEvent(ev: any) {
+    console.log('handlerEditorChangeCursorEvent')
     this.setLocalCursor()
   }
 
+  private handlerEditorChangeSelectionEvent(ev: any) {
+    console.log(ev)
+    this.setLocalSelection()
+  }
+
   private handlerTextModelOnRealTimeStringEventsVALUE(evt: IConvergenceEvent) {
-    if (!this.editorDocument) {
+    if (!this.textModel) {
       return
     }
 
@@ -242,15 +340,13 @@ export class CollaboratorManagerForOnes {
 
     console.log('VALUE', event)
     this.suppressEvents = true
-    const pos = this.editor.setValue(event.element.value())
+    this.editorDocument.setValue(this.textModel.value())
     this.suppressEvents = false
   }
 
   private handlerTextModelOnRealTimeStringEventsREMOVE(evt: IConvergenceEvent) {
     console.log(evt)
-    if (!this.editorDocument) {
-      return
-    }
+
     const event = evt as StringRemoveEvent
     const start = this.editorDocument.indexToPosition(event.index, 0)
     const end = this.editorDocument.indexToPosition(event.index + event.value.length, 0)
@@ -260,9 +356,6 @@ export class CollaboratorManagerForOnes {
   }
 
   private handlerTextModelOnRealTimeStringEventsINSERT(evt: IConvergenceEvent) {
-    if (!this.editorDocument) {
-      return
-    }
     const event = evt as StringInsertEvent
     console.log('INSERT', evt)
     const pos = this.editorDocument.indexToPosition(event.index, 0)
@@ -273,13 +366,35 @@ export class CollaboratorManagerForOnes {
 
   private handlerTextModelReferenceEvent(evt: IConvergenceEvent) {
     const event = evt as RemoteReferenceCreatedEvent
-    console.log('reference', evt)
-    if (event.reference.key() === COLABORATION_CURSOR_KEY) {
+
+    const refkey: string = event.reference.key()
+
+    if (refkey === COLABORATION_CURSOR_KEY) {
       this.addCursor(event.reference)
+    } else if (refkey === COLABORATION_SELECTION_KEY) {
+      this.addSelection(event.reference)
     }
   }
 
-  private handlerReferenseClearedEvent(evt: IConvergenceEvent) {}
+  private toAceRange(range: any) {
+    if (typeof range !== 'object') {
+      return null
+    }
+
+    let start = range.start
+    let end = range.end
+
+    if (start > end) {
+      const temp = start
+      start = end
+      end = temp
+    }
+
+    const rangeAnchor = this.editorDocument.indexToPosition(start, 0)
+    const rangeLead = this.editorDocument.indexToPosition(end, 0)
+
+    return new AceRange(rangeAnchor.row, rangeAnchor.column, rangeLead.row, rangeLead.column)
+  }
 }
 
 declare var window: AppTo1CWindow

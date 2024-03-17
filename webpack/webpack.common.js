@@ -15,13 +15,15 @@ const HtmlWebpackPlugin = require('html-webpack-plugin')
 // I want one rule for development and production, so I use `isDev` to check the process
 const isDev = process.env.NODE_ENV !== 'production'
 
+const entry = {
+  app: `${defines.src}/index.ts`
+}
+if (isDev) {
+  entry.ace = `${defines.src}/ace/ace.ts`
+}
+
 module.exports = {
-  entry: {
-    app: `${defines.src}/index.ts`,
-    ace: `${defines.src}/ace/ace.ts`
-    // another app example:
-    // auth: `${defines.src}/_auth/index.ts`
-  },
+  entry,
   output: {
     path: defines.dist,
     // if you need hash:

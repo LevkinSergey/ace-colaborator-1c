@@ -1851,6 +1851,11 @@ ace-builds@^1.32.7, ace-builds@^1.4.12:
   resolved "https://registry.npmjs.org/ace-builds/-/ace-builds-1.32.7.tgz"
   integrity sha512-ziv35kaYELFw4suWlotz/Xsl1/1LhWAbwFoD3zIgCgP9gXGECEsAM4GhiB0T0xZdmQjyv6hmAzO280g0+n4vGw==
 
+ace-code@^1.32.7:
+  version "1.32.7"
+  resolved "https://registry.npmjs.org/ace-code/-/ace-code-1.32.7.tgz"
+  integrity sha512-Y+9HuaAFCgVe1PMk6x9b+E4ijNZ5kRy0JbMoEKf/dDCTkzui0pEkCqgJIVDP5UUry50rphW7tfMCyGCqBYqyHQ==
+
 acorn-import-assertions@^1.9.0:
   version "1.9.0"
   resolved "https://registry.npmjs.org/acorn-import-assertions/-/acorn-import-assertions-1.9.0.tgz"

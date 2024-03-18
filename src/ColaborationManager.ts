@@ -12,8 +12,6 @@ const COLABORATION_VIEW_KEY = 'view'
 
 const AceRange = Range
 
-export type CalaborationType = 'SOURSE' | 'FORK'
-
 export type ColaboratorEditor = Ace.Editor
 export type ColaboratorEditorSession = Ace.EditSession
 export type ColaboratorEditorDoc = Ace.Document
@@ -23,7 +21,6 @@ export type ColaborationCloseCallback = () => void
 export interface CollaboratorManagerForOnesOptions {
   editor: ColaboratorEditor
   colaborationUrl: string
-  colaborationType: CalaborationType
   username: string
   colabSessionId: string
   collectionId?: string
@@ -32,7 +29,6 @@ export interface CollaboratorManagerForOnesOptions {
 export class CollaboratorManagerForOnes {
   private readonly editor: ColaboratorEditor
   private readonly colaborationUrl: string
-  private readonly colaborationType: CalaborationType
   private username: string
   private readonly colabSessionId: string
   private readonly editorDocument: ColaboratorEditorDoc
@@ -58,7 +54,6 @@ export class CollaboratorManagerForOnes {
   constructor(options: CollaboratorManagerForOnesOptions) {
     this.editor = options.editor
     this.colaborationUrl = options.colaborationUrl
-    this.colaborationType = options.colaborationType
     this.username = options.username
     this.colabSessionId = options.colabSessionId
 
@@ -100,6 +95,11 @@ export class CollaboratorManagerForOnes {
   }
 
   connect() {
+    if (this.domain) {
+      if (this.domain.isConnected()) {
+        return
+      }
+    }
     connectAnonymously(this.colaborationUrl, this.username, undefined, this.cancelationToken)
       .then(this.handlerDomainOpen.bind(this))
       .catch(error => {
@@ -131,7 +131,6 @@ export class CollaboratorManagerForOnes {
       this.textModel.removeAllListeners()
     }
     if (this.model) {
-      this.model.removeAllListeners()
       this.model.removeAllListeners()
       this.model
         .close()
@@ -176,23 +175,11 @@ export class CollaboratorManagerForOnes {
     this.model = model
     this.textModel = this.model.elementAt('text') as RealTimeString
 
-    this.model.on('collaborator_opened', ev => {
-      const event = ev as CollaboratorOpenedEvent
-
-      console.log(ev)
-    })
-
-    this.model.on('collaborator_closed', ev => {
-      const event = ev as CollaboratorClosedEvent
-
-      console.log(ev)
-    })
-
     this.textModel.on('reference', this.handlerTextModelReferenceEvent.bind(this))
 
     this.initTextColaboration()
     // this.initRadarView()
-    this.initCursorColaboration()
+    // this.initCursorColaboration()
     this.initSelectionColaboration()
 
     // this.model.root().on('model_changed', evt => {
@@ -200,13 +187,20 @@ export class CollaboratorManagerForOnes {
     // })
 
     //отправляем или принимаем значения
-    if (this.colaborationType === 'SOURSE') {
+    //Если первые, значит наше код будут смотреть
+    if (this.model.collaborators().length === 1) {
       this.textModel.value(this.editor.getValue())
     } else {
       this.suppressEvents = true
       this.editorDocument.setValue(this.textModel.value())
       this.suppressEvents = false
     }
+
+    this.model.on(RealTimeModel.Events.COLLABORATOR_OPENED, this.handlerCollaboratorOpenedEvent.bind(this))
+    this.model.on(RealTimeModel.Events.COLLABORATOR_CLOSED, this.handlerColaboratorCloseEvent.bind(this))
+    this.model.on(RealTimeModel.Events.REFERENCE, even => {
+      console.log('RealTimeModel.Events.REFERENCE', even)
+    })
   }
 
   private initTextColaboration() {
@@ -246,17 +240,19 @@ export class CollaboratorManagerForOnes {
 
     this.selectionReference = this.textModel.rangeReference(COLABORATION_SELECTION_KEY)
 
+    this.setLocalSelection()
+    this.selectionReference.share()
+
     this.editor.on('changeSelection', this.handlerEditorChangeSelectionEvent.bind(this))
 
+    console.log('this.model?.collaborators()', this.model?.collaborators())
     const selectionsReferences = this.textModel.references({ key: COLABORATION_SELECTION_KEY })
-    console.log(selectionsReferences)
+    console.log('selectionsReferences', selectionsReferences)
     selectionsReferences.forEach((reference: any) => {
       if (!reference.isLocal()) {
         this.addSelection(reference)
       }
     })
-    this.setLocalSelection()
-    this.selectionReference.share()
   }
 
   private initRadarView() {
@@ -302,13 +298,13 @@ export class CollaboratorManagerForOnes {
     const color = this.colorAssigner.getColorAsHex(reference.sessionId())
     const remoteCursorIndex = reference.value()
     this.cursorManager.addCursor(reference.sessionId(), displayName, color, remoteCursorIndex)
-    reference.on('cleared', () => {
+    reference.on(ModelReference.Events.CLEARED, () => {
       this.cursorManager.clearCursor(reference.sessionId())
     })
-    reference.on('disposed', () => {
+    reference.on(ModelReference.Events.DISPOSED, () => {
       this.cursorManager.removeCursor(reference.sessionId())
     })
-    reference.on('set', () => {
+    reference.on(ModelReference.Events.SET, () => {
       const cursorIndex = reference.value()
       const cursorRow = this.editorDocument.indexToPosition(cursorIndex, 0).row
       this.cursorManager.setCursor(reference.sessionId(), cursorIndex)
@@ -335,7 +331,7 @@ export class CollaboratorManagerForOnes {
       }
       console.log('indexRanges', indexRanges)
       this.selectionReference.set(indexRanges)
-    } else if (this.selectionReference.isSet()) {
+    } else if (this.selectionReference.isSet() && !this.selectionReference.isDisposed()) {
       this.selectionReference.clear()
     }
   }
@@ -359,15 +355,15 @@ export class CollaboratorManagerForOnes {
     // })
 
     this.selectionManager.addSelection(reference.sessionId(), reference.user().username, color, remoteSelections)
-    reference.on(ReferenceClearedEvent.NAME, () => {
+    reference.on(ModelReference.Events.CLEARED, () => {
       console.log('ReferenceClearedEvent.NAME')
 
       this.selectionManager.clearSelection(reference.sessionId())
     })
-    reference.on('disposed', () => {
+    reference.on(ModelReference.Events.DISPOSED, () => {
       this.selectionManager.removeSelection(reference.sessionId())
     })
-    reference.on('set', (ev: any) => {
+    reference.on(ModelReference.Events.SET, (ev: any) => {
       console.log('set', ev)
       const newSelectionsRanges: Ace.Range[] = []
 
@@ -424,15 +420,12 @@ export class CollaboratorManagerForOnes {
 
     const event = evt as StringSetValueEvent
 
-    console.log('VALUE', event)
     this.suppressEvents = true
     this.editorDocument.setValue(this.textModel.value())
     this.suppressEvents = false
   }
 
   private handlerTextModelOnRealTimeStringEventsREMOVE(evt: IConvergenceEvent) {
-    console.log(evt)
-
     const event = evt as StringRemoveEvent
     const start = this.editorDocument.indexToPosition(event.index, 0)
     const end = this.editorDocument.indexToPosition(event.index + event.value.length, 0)
@@ -443,7 +436,7 @@ export class CollaboratorManagerForOnes {
 
   private handlerTextModelOnRealTimeStringEventsINSERT(evt: IConvergenceEvent) {
     const event = evt as StringInsertEvent
-    console.log('INSERT', evt)
+
     const pos = this.editorDocument.indexToPosition(event.index, 0)
     this.suppressEvents = true
     this.editorDocument.insert(pos, event.value)
@@ -451,7 +444,6 @@ export class CollaboratorManagerForOnes {
   }
 
   private handlerTextModelReferenceEvent(evt: IConvergenceEvent) {
-    console.log('handlerTextModelReferenceEvent', evt)
     const event = evt as RemoteReferenceCreatedEvent
 
     const refkey: string = event.reference.key()
@@ -513,19 +505,19 @@ export class CollaboratorManagerForOnes {
     }
 
     // fixme need to implement this on the ace collab side
-    reference.on('cleared', () => {
+    reference.on(ModelReference.Events.CLEARED, () => {
       if (!this.radarView) {
         return
       }
       this.radarView.clearView(reference.sessionId())
     })
-    reference.on('disposed', () => {
+    reference.on(ModelReference.Events.DISPOSED, () => {
       if (!this.radarView) {
         return
       }
       this.radarView.removeView(reference.sessionId())
     })
-    reference.on('set', () => {
+    reference.on(ModelReference.Events.SET, () => {
       if (!this.radarView) {
         return
       }
@@ -533,6 +525,18 @@ export class CollaboratorManagerForOnes {
       const rows = AceViewportUtil.indicesToRows(window.editor, v.start, v.end)
       this.radarView.setViewRows(reference.sessionId(), rows)
     })
+  }
+
+  private handlerColaboratorCloseEvent(evt: IConvergenceEvent) {
+    const event = evt as CollaboratorClosedEvent
+
+    console.log(evt)
+  }
+
+  private handlerCollaboratorOpenedEvent(evt: IConvergenceEvent) {
+    const event = evt as CollaboratorOpenedEvent
+
+    console.log(evt)
   }
 }
 

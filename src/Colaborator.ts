@@ -1,4 +1,4 @@
-import { CalaborationType, ColaboratorEditor, CollaboratorManagerForOnes } from './ColaborationManager'
+import { ColaboratorEditor, CollaboratorManagerForOnes } from './ColaborationManager'
 
 export const DEFAULT_COLABORATION_URL = 'http://localhost:9000/api/realtime/convergence/default'
 
@@ -27,14 +27,13 @@ export class ColaboratorForOnes {
     this.colaborationUrl = url
   }
 
-  start(type: CalaborationType, sessionId: string): boolean {
+  start(sessionId: string): boolean {
     if (this.manager) {
       return false
     }
 
     this.manager = new CollaboratorManagerForOnes({
       editor: this.editor,
-      colaborationType: type,
       colaborationUrl: this.colaborationUrl,
       username: this.username,
       colabSessionId: sessionId

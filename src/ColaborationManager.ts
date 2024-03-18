@@ -39,6 +39,8 @@ export class CollaboratorManagerForOnes {
   private readonly radarView?: AceRadarView
 
   collectionId: string
+  cursors: Record<string, string>
+  selections: Record<string, string>
 
   domain?: ConvergenceDomain
   model?: RealTimeModel
@@ -77,6 +79,9 @@ export class CollaboratorManagerForOnes {
     if (radarViewElement) {
       this.radarView = new AceRadarView(radarViewElement, this.editor)
     }
+
+    this.cursors = {}
+    this.selections = {}
   }
 
   setUserName(name: string) {
@@ -177,10 +182,14 @@ export class CollaboratorManagerForOnes {
 
     this.textModel.on('reference', this.handlerTextModelReferenceEvent.bind(this))
 
+    const firsConnection = this.model.collaborators().length === 1
+
     this.initTextColaboration()
     // this.initRadarView()
-    // this.initCursorColaboration()
-    this.initSelectionColaboration()
+    if (!firsConnection) {
+      this.initCursorColaboration()
+      this.initSelectionColaboration()
+    }
 
     // this.model.root().on('model_changed', evt => {
     //   console.log('model change', evt)
@@ -292,6 +301,12 @@ export class CollaboratorManagerForOnes {
   }
 
   private addCursor(reference: ModelReference<number>) {
+    const cursor = this.cursors[reference.sessionId()]
+    if (cursor) {
+      return
+    }
+    this.cursors[reference.sessionId()] = reference.sessionId()
+
     console.log('addCursor', reference)
     const displayName = reference.user().displayName || 'User' + Date.now()
 
@@ -337,6 +352,12 @@ export class CollaboratorManagerForOnes {
   }
 
   private addSelection(reference: ModelReference<number>) {
+    const select = this.selections[reference.sessionId()]
+    if (select) {
+      return
+    }
+    this.selections[reference.sessionId()] = reference.sessionId()
+
     const color = this.colorAssigner.getColorAsHex(reference.sessionId())
     const remoteSelections: Ace.Range[] = []
 
@@ -445,13 +466,20 @@ export class CollaboratorManagerForOnes {
 
   private handlerTextModelReferenceEvent(evt: IConvergenceEvent) {
     const event = evt as RemoteReferenceCreatedEvent
-
+    console.log('handlerTextModelReferenceEvent', evt)
     const refkey: string = event.reference.key()
 
     if (refkey === COLABORATION_CURSOR_KEY) {
+
       this.addCursor(event.reference)
+      if (!this.cursorReference) {
+        this.initCursorColaboration()
+      }
     } else if (refkey === COLABORATION_SELECTION_KEY) {
       this.addSelection(event.reference)
+      if (!this.selectionReference) {
+        this.initSelectionColaboration()
+      }
     } else if (refkey === COLABORATION_VIEW_KEY) {
       this.addView(event.reference)
     }

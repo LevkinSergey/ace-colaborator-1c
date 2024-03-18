@@ -188,7 +188,7 @@ export class CollaboratorManagerForOnes {
 
     this.initTextColaboration()
     if (!firsConnection) {
-      // this.initRadarView()
+      this.initRadarView()
       this.initCursorColaboration()
       this.initSelectionColaboration()
     }
@@ -256,9 +256,7 @@ export class CollaboratorManagerForOnes {
 
     this.editor.on('changeSelection', this.handlerEditorChangeSelectionEvent.bind(this))
 
-    console.log('this.model?.collaborators()', this.model?.collaborators())
     const selectionsReferences = this.textModel.references({ key: COLABORATION_SELECTION_KEY })
-    console.log('selectionsReferences', selectionsReferences)
     selectionsReferences.forEach((reference: any) => {
       if (!reference.isLocal()) {
         this.addSelection(reference)
@@ -277,23 +275,21 @@ export class CollaboratorManagerForOnes {
     this.viewReference = this.textModel.rangeReference(COLABORATION_VIEW_KEY)
 
     const references = this.textModel.references({ key: COLABORATION_VIEW_KEY })
-    references.forEach((reference: any) => {
+    for (const reference of references) {
       if (!reference.isLocal()) {
         this.addView(reference)
       }
-    })
+    }
 
-    this.editor.session.on('changeScrollTop', () => {
-      setTimeout(() => this.setLocalView(), 0)
-    })
+    this.editor.session.on('changeScrollTop', this.handlerEditorSessionChangeScrollTopEvent.bind(this))
 
-    setTimeout(() => {
-      if (!this.viewReference) {
-        return
-      }
-      this.setLocalView()
-      this.viewReference.share()
-    }, 0)
+    // setTimeout(() => {
+    //   if (!this.viewReference) {
+    //     return
+    //   }
+    this.setLocalView()
+    this.viewReference.share()
+    // }, 0)
   }
 
   private setLocalCursor() {
@@ -489,7 +485,7 @@ export class CollaboratorManagerForOnes {
     } else if (refkey === COLABORATION_VIEW_KEY) {
       this.addView(event.reference)
       if (!this.viewReference) {
-        // this.initRadarView()
+        this.initRadarView()
       }
     }
   }
@@ -518,7 +514,7 @@ export class CollaboratorManagerForOnes {
     if (!this.viewReference) {
       return
     }
-    const viewportIndices = AceViewportUtil.getVisibleIndexRange(window.editor)
+    const viewportIndices = AceViewportUtil.getVisibleIndexRange(this.editor)
     this.viewReference.set({ start: viewportIndices.start, end: viewportIndices.end })
   }
 
@@ -580,6 +576,15 @@ export class CollaboratorManagerForOnes {
     const event = evt as CollaboratorOpenedEvent
 
     console.log(evt)
+  }
+
+  private handlerEditorSessionChangeScrollTopEvent() {
+    setTimeout(this.handlerEditorSessionChangeScrollTopEventTimeout.bind(this), 0)
+  }
+
+  private handlerEditorSessionChangeScrollTopEventTimeout() {
+    console.log(this)
+    this.setLocalView()
   }
 }
 

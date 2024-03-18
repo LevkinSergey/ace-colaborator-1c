@@ -43,11 +43,13 @@ export class ColaboratorForOnes {
     return true
   }
 
-  stop() {
+  close() {
     if (!this.manager) {
       return
     }
 
-    this.manager.close()
+    this.manager.close(() => {
+      console.log('good close')
+    })
   }
 }

@@ -1,3 +1,4 @@
+import 'core-js/stable'
 import './ace.scss'
 
 import ace from 'ace-builds'

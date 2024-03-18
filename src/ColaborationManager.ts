@@ -41,6 +41,7 @@ export class CollaboratorManagerForOnes {
   collectionId: string
   cursors: Record<string, string>
   selections: Record<string, string>
+  views: Record<string, string>
 
   domain?: ConvergenceDomain
   model?: RealTimeModel
@@ -82,6 +83,7 @@ export class CollaboratorManagerForOnes {
 
     this.cursors = {}
     this.selections = {}
+    this.views = {}
   }
 
   setUserName(name: string) {
@@ -185,8 +187,8 @@ export class CollaboratorManagerForOnes {
     const firsConnection = this.model.collaborators().length === 1
 
     this.initTextColaboration()
-    // this.initRadarView()
     if (!firsConnection) {
+      // this.initRadarView()
       this.initCursorColaboration()
       this.initSelectionColaboration()
     }
@@ -268,6 +270,10 @@ export class CollaboratorManagerForOnes {
     if (!this.textModel) {
       return
     }
+    if (!this.radarView) {
+      return
+    }
+
     this.viewReference = this.textModel.rangeReference(COLABORATION_VIEW_KEY)
 
     const references = this.textModel.references({ key: COLABORATION_VIEW_KEY })
@@ -482,6 +488,9 @@ export class CollaboratorManagerForOnes {
       }
     } else if (refkey === COLABORATION_VIEW_KEY) {
       this.addView(event.reference)
+      if (!this.viewReference) {
+        // this.initRadarView()
+      }
     }
   }
 
@@ -517,6 +526,12 @@ export class CollaboratorManagerForOnes {
     if (!this.radarView) {
       return
     }
+    const view = this.views[reference.sessionId()]
+    if (view) {
+      return
+    }
+    this.views[reference.sessionId()] = reference.sessionId()
+
     const color = this.colorAssigner.getColorAsHex(reference.sessionId())
 
     // fixme need the cursor

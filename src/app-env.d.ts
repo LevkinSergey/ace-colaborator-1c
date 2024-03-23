@@ -7,7 +7,7 @@ interface AppTo1CWindow extends Window {
   isWebClient: boolean
   editor: Ace.Editor
   colaborator: {
-    instanse: ColaboratorForOnes
+    instanse: ColaboratorForOnes | undefined
     start: (sessionId: string) => boolean
     close: () => void
     setUserName: (name: string) => void

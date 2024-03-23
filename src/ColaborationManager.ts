@@ -1,7 +1,6 @@
 // import { AppTo1CWindow } from '@/app-env'
 import { CancellationToken, CollaboratorClosedEvent, CollaboratorOpenedEvent, connectAnonymously, ConvergenceDomain, IConvergenceEvent, IndexRange, IndexReference, LocalIndexReference, LocalRangeReference, ModelCollaborator, ModelReference, RealTimeElement, RealTimeModel, RealTimeString, ReferenceClearedEvent, ReferenceSetEvent, RemoteReferenceCreatedEvent, StringInsertEvent, StringRemoveEvent, StringSetValueEvent } from '@convergence/convergence'
-// import { Ace } from 'ace-builds'
-import { Ace, Range } from 'ace-code'
+import { Ace, Range } from 'ace-builds'
 import { AppTo1CWindow } from './app-env'
 import { AceMultiCursorManager, AceMultiSelectionManager, AceRadarView, AceViewportUtil } from '@convergencelabs/ace-collab-ext'
 import { ColorAssigner } from '@convergence/color-assigner'
@@ -472,7 +471,6 @@ export class CollaboratorManagerForOnes {
     const refkey: string = event.reference.key()
 
     if (refkey === COLABORATION_CURSOR_KEY) {
-
       this.addCursor(event.reference)
       if (!this.cursorReference) {
         this.initCursorColaboration()

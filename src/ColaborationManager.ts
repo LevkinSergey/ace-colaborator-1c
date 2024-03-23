@@ -53,6 +53,8 @@ export class CollaboratorManagerForOnes {
   colorAssigner: ColorAssigner
   suppressEvents: boolean
 
+  statusBarElement: HTMLElement | null
+
   constructor(options: CollaboratorManagerForOnesOptions) {
     this.editor = options.editor
     this.colaborationUrl = options.colaborationUrl
@@ -83,6 +85,13 @@ export class CollaboratorManagerForOnes {
     this.cursors = {}
     this.selections = {}
     this.views = {}
+
+    this.statusBarElement = null
+    const statusBarDiv = document.getElementById('statusBar')
+    if (statusBarDiv) {
+      this.statusBarElement = document.createElement('span')
+      statusBarDiv.insertBefore(this.statusBarElement, statusBarDiv.firstChild)
+    }
   }
 
   setUserName(name: string) {
@@ -97,7 +106,7 @@ export class CollaboratorManagerForOnes {
       return false
     }
 
-    return true
+    return this.domain.isConnected()
   }
 
   connect() {
@@ -150,6 +159,8 @@ export class CollaboratorManagerForOnes {
           delete this.model
           delete this.domain
 
+          this.setStatusText('')
+
           console.log('model close')
 
           callback()
@@ -158,6 +169,13 @@ export class CollaboratorManagerForOnes {
           console.log('model close error', error)
         })
     }
+  }
+
+  setStatusText(text: string) {
+    if (!this.statusBarElement) {
+      return
+    }
+    this.statusBarElement.textContent = text
   }
 
   private handlerDomainOpen(domain: ConvergenceDomain) {
@@ -211,6 +229,9 @@ export class CollaboratorManagerForOnes {
     this.model.on(RealTimeModel.Events.REFERENCE, even => {
       console.log('RealTimeModel.Events.REFERENCE', even)
     })
+
+    //Установим текст статуса
+    this.setStatusText('Сессия взаимодействия: ' + this.colabSessionId)
   }
 
   private initTextColaboration() {

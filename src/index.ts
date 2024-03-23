@@ -4,6 +4,7 @@ import './index.scss'
 
 import { AppTo1CWindow } from './app-env'
 import { ColaboratorForOnes } from './Colaborator'
+import { COLABORATOR_READY, emitEventTo1C } from './eventDispatcherTo1C'
 
 function initColaborator() {
   window.colaborator = {
@@ -24,5 +25,7 @@ function initColaborator() {
 }
 
 initColaborator()
+
+emitEventTo1C(COLABORATOR_READY, undefined, undefined)
 
 declare var window: AppTo1CWindow

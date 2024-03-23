@@ -4,6 +4,7 @@ import { Ace } from 'ace-builds'
 import { ColaboratorForOnes } from './Colaborator'
 
 interface AppTo1CWindow extends Window {
+  isWebClient: boolean
   editor: Ace.Editor
   colaborator: {
     instanse: ColaboratorForOnes

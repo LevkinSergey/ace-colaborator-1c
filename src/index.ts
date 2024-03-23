@@ -2,16 +2,27 @@
 // DO NOT mess this file!
 import './index.scss'
 
-import { CollaboratorManagerForOnes } from './ColaborationManager'
 import { AppTo1CWindow } from './app-env'
 import { ColaboratorForOnes } from './Colaborator'
 
 function initColaborator() {
-  window.colaborator = new ColaboratorForOnes(window.editor)
+  window.colaborator = {
+    instanse: new ColaboratorForOnes(window.editor),
+    start: (sessionId: string) => {
+      return window.colaborator.instanse.start(sessionId)
+    },
+    close: () => {
+      window.colaborator.instanse.close()
+    },
+    setUserName: (name: string) => {
+      window.colaborator.instanse.setUserName(name)
+    },
+    setColaborationUrl: (url: string) => {
+      window.colaborator.instanse.setColaborationUrl(url)
+    }
+  }
 }
 
-window.addEventListener('load', ev => {
-  initColaborator()
-})
+initColaborator()
 
 declare var window: AppTo1CWindow

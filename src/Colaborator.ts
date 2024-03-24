@@ -48,6 +48,7 @@ export class ColaboratorForOnes {
     }
 
     this.manager.close(() => {
+      delete this.manager
       console.log('good close')
     })
   }
